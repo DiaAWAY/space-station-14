@@ -33,7 +33,7 @@ namespace Content.Server.GameObjects.EntitySystems
             inputSys.BindMap.BindFunction(ContentKeyFunctions.ExamineEntity, new PointerInputCmdHandler(HandleExamine));
         }
 
-        private void HandleExamine(ICommonSession session, GridLocalCoordinates coords, EntityUid uid)
+        private void HandleExamine(ICommonSession session, GridCoordinates coords, EntityUid uid)
         {
             if (!(session is IPlayerSession svSession))
                 return;
@@ -76,7 +76,7 @@ namespace Content.Server.GameObjects.EntitySystems
             }
 
             //Send to client chat channel
-            IoCManager.Resolve<IChatManager>().DispatchMessage(SS14.Shared.Console.ChatChannel.Visual, fullExamineText.ToString(), session.SessionId);
+            IoCManager.Resolve<IChatManager>().DispatchMessage(svSession.ConnectedClient, SS14.Shared.Console.ChatChannel.Visual, fullExamineText.ToString(), session.SessionId);
         }
     }
 }

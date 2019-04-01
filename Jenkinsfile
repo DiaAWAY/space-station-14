@@ -6,12 +6,12 @@ pipeline {
             steps {
                 sh 'git submodule update --init --recursive'
                 sh 'TMP=~/.cache/NuGet/ nuget restore'
-                sh 'engine/Tools/download_godotsharp.py'
+                sh 'RobustToolbox/Tools/download_godotsharp.py'
             }
         }
         stage('Build') {
             steps {
-                sh './package_release_build.py -p windows mac linux --godot /home/pjbriers/builds_shared/godot --windows-godot-build /home/pjbriers/builds_shared/win --linux-godot-build /home/pjbriers/builds_shared/linux'
+                sh 'Tools/package_release_build.py -p windows mac linux'
                 archiveArtifacts artifacts: 'release/*.zip'
             }
         }

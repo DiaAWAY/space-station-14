@@ -14,6 +14,8 @@ using SS14.Shared.IoC;
 using SS14.Shared.Log;
 using SS14.Shared.Serialization;
 using System.Collections.Generic;
+using Content.Shared.Interfaces;
+using SS14.Shared.GameObjects.EntitySystemMessages;
 using SS14.Shared.ViewVariables;
 
 namespace Content.Server.GameObjects
@@ -25,6 +27,7 @@ namespace Content.Server.GameObjects
     {
         private Container storage;
 
+        private bool _storageInitialCalculated = false;
         private int StorageUsed = 0;
         private int StorageCapacityMax = 10000;
         public HashSet<IPlayerSession> SubscribedSessions = new HashSet<IPlayerSession>();
@@ -43,13 +46,13 @@ namespace Content.Server.GameObjects
             }
         }
 
-        public override void OnAdd()
+        public override void Initialize()
         {
-            base.OnAdd();
+            base.Initialize();
 
-            storage = ContainerManagerComponent.Create<Container>("storagebase", Owner);
+            storage = ContainerManagerComponent.Ensure<Container>("storagebase", Owner);
         }
-        
+
         /// <inheritdoc />
         public override ComponentState GetComponentState()
         {
@@ -61,6 +64,7 @@ namespace Content.Server.GameObjects
             base.ExposeData(serializer);
 
             serializer.DataField(ref StorageCapacityMax, "Capacity", 10000);
+            serializer.DataField(ref StorageUsed, "used", 0);
         }
 
         /// <summary>
@@ -68,8 +72,9 @@ namespace Content.Server.GameObjects
         /// </summary>
         /// <param name="toremove"></param>
         /// <returns></returns>
-        bool Remove(IEntity toremove)
+        public bool Remove(IEntity toremove)
         {
+            _ensureInitialCalculated();
             if (storage.Remove(toremove))
             {
                 Logger.InfoS("Storage", "Storage (UID {0}) had entity (UID {1}) removed from it.", Owner.Uid, toremove.Uid);
@@ -85,7 +90,7 @@ namespace Content.Server.GameObjects
         /// </summary>
         /// <param name="toinsert"></param>
         /// <returns></returns>
-        bool Insert(IEntity toinsert)
+        public bool Insert(IEntity toinsert)
         {
             if (CanInsert(toinsert) && storage.Insert(toinsert))
             {
@@ -102,14 +107,22 @@ namespace Content.Server.GameObjects
         /// </summary>
         /// <param name="toinsert"></param>
         /// <returns></returns>
-        bool CanInsert(IEntity toinsert)
+        public bool CanInsert(IEntity toinsert)
         {
+            _ensureInitialCalculated();
+
+            if (toinsert.TryGetComponent(out ServerStorageComponent storage))
+            {
+                if (storage.StorageCapacityMax >= StorageCapacityMax)
+                    return false;
+            }
+
             if (toinsert.TryGetComponent(out StoreableComponent store))
             {
-                if (store.ObjectSize <= (StorageCapacityMax - StorageUsed))
-                    return true;
+                if (store.ObjectSize > (StorageCapacityMax - StorageUsed))
+                    return false;
             }
-            return false;
+            return true;
         }
 
         /// <summary>
@@ -120,21 +133,23 @@ namespace Content.Server.GameObjects
         /// <returns></returns>
         bool IAttackby.Attackby(IEntity user, IEntity attackwith)
         {
+            _ensureInitialCalculated();
             Logger.DebugS("Storage", "Storage (UID {0}) attacked by user (UID {1}) with entity (UID {2}).", Owner.Uid, user.Uid, attackwith.Uid);
-            var hands = user.GetComponent<HandsComponent>();
+
+            if (!user.TryGetComponent(out HandsComponent hands))
+                return false;
+            
             //Check that we can drop the item from our hands first otherwise we obviously cant put it inside
-            if (hands.Drop(hands.ActiveIndex, null))
+            if (CanInsert(hands.GetActiveHand.Owner) &&  hands.Drop(hands.ActiveIndex))
             {
-                var inserted = Insert(attackwith);
-                if (inserted)
+                if (Insert(attackwith))
                 {
                     return true;
                 }
-                else
-                {
-                    //Return the object to the hand since its too big or something like that
-                    hands.PutInHand(attackwith.GetComponent<ItemComponent>());
-                }
+            }
+            else
+            {
+                Owner.PopupMessage(user, "Can't insert.");
             }
             return false;
         }
@@ -146,6 +161,7 @@ namespace Content.Server.GameObjects
         /// <returns></returns>
         bool IUse.UseEntity(IEntity user)
         {
+            _ensureInitialCalculated();
             var user_session = user.GetComponent<BasicActorComponent>().playerSession;
             Logger.DebugS("Storage", "Storage (UID {0}) \"used\" by player session (UID {1}).", Owner.Uid, user_session.AttachedEntityUid);
             SubscribeSession(user_session);
@@ -171,6 +187,7 @@ namespace Content.Server.GameObjects
         /// <param name="actor"></param>
         public void SubscribeSession(IPlayerSession session)
         {
+            _ensureInitialCalculated();
             if (!SubscribedSessions.Contains(session))
             {
                 Logger.DebugS("Storage", "Storage (UID {0}) subscribed player session (UID {1}).", Owner.Uid, session.AttachedEntityUid);
@@ -243,6 +260,7 @@ namespace Content.Server.GameObjects
             {
                 case RemoveEntityMessage _:
                 {
+                    _ensureInitialCalculated();
                     var playerMan = IoCManager.Resolve<IPlayerManager>();
                     var session = playerMan.GetSessionByChannel(netChannel);
                     var playerentity = session.AttachedEntity;
@@ -250,7 +268,7 @@ namespace Content.Server.GameObjects
                     var ourtransform = Owner.GetComponent<ITransformComponent>();
                     var playertransform = playerentity.GetComponent<ITransformComponent>();
 
-                    if (playertransform.LocalPosition.InRange(ourtransform.LocalPosition, 2)
+                    if (playertransform.GridPosition.InRange(ourtransform.GridPosition, 2)
                         && (ourtransform.IsMapTransform || playertransform.ContainsEntity(ourtransform)))
                     {
                         var remove = (RemoveEntityMessage)message;
@@ -287,6 +305,24 @@ namespace Content.Server.GameObjects
         void IActivate.Activate(IEntity user)
         {
             ((IUse) this).UseEntity(user);
+        }
+
+        private void _ensureInitialCalculated()
+        {
+            if (_storageInitialCalculated)
+            {
+                return;
+            }
+
+            StorageUsed = 0;
+
+            foreach (var entity in storage.ContainedEntities)
+            {
+                var item = entity.GetComponent<ItemComponent>();
+                StorageUsed += item.ObjectSize;
+            }
+
+            _storageInitialCalculated = true;
         }
     }
 }

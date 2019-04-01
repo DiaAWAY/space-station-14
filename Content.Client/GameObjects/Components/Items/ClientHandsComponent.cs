@@ -27,6 +27,8 @@ namespace Content.Client.GameObjects
 
         [ViewVariables] private ISpriteComponent _sprite;
 
+        [ViewVariables] public IEntity ActiveHand => GetEntity(ActiveIndex);
+
         public override void OnAdd()
         {
             base.OnAdd();
@@ -172,6 +174,11 @@ namespace Content.Client.GameObjects
         public void SendChangeHand(string index)
         {
             SendNetworkMessage(new ClientChangedHandMsg(index));
+        }
+
+        public void AttackByInHand(string index)
+        {
+            SendNetworkMessage(new ClientAttackByInHandMsg(index));
         }
 
         public void UseActiveHand()

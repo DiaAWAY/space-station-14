@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Content.Shared</RootNamespace>
     <AssemblyName>Content.Shared</AssemblyName>
-    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <OutputPath>bin\x86\Debug\</OutputPath>
     <ErrorReport>prompt</ErrorReport>
@@ -63,53 +63,57 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EntryPoint.cs" />
+    <Compile Include="GameObjects\Components\Damage\DamageableComponent.cs" />
+    <Compile Include="GameObjects\Components\Doors\SharedDoorComponent.cs" />
     <Compile Include="GameObjects\Components\Inventory\EquipmentSlotDefinitions.cs" />
     <Compile Include="GameObjects\Components\Inventory\InventoryTemplates.cs" />
     <Compile Include="GameObjects\Components\Inventory\SharedInventoryComponent.cs" />
+    <Compile Include="GameObjects\Components\Markers\SharedSpawnPointComponent.cs" />
+    <Compile Include="GameObjects\Components\Mobs\SharedCameraRecoilComponent.cs" />
     <Compile Include="GameObjects\Components\Power\PowerShared.cs" />
     <Compile Include="GameObjects\Components\Power\SharedPowerCellComponent.cs" />
+    <Compile Include="GameObjects\Components\Sound\SharedSoundComponent.cs" />
     <Compile Include="GameObjects\Components\Storage\SharedStorageComponent.cs" />
+    <Compile Include="GameObjects\Components\Weapons\Ranged\SharedBallisticMagazineComponent.cs" />
+    <Compile Include="GameObjects\Components\Weapons\Ranged\SharedBallisticMagazineWeaponComponent.cs" />
+    <Compile Include="GameObjects\Components\Weapons\Ranged\SharedRangedWeaponComponent.cs" />
     <Compile Include="GameObjects\ContentNetIDs.cs" />
+    <Compile Include="GameObjects\EntitySystemMessages\VerbSystemMessages.cs" />
+    <Compile Include="GameObjects\Messages\Mob\HealthHud.cs" />
     <Compile Include="GameObjects\PhysicalConstants.cs" />
+    <Compile Include="Interfaces\ISharedNotifyManager.cs" />
+    <Compile Include="GameObjects\Verb.cs" />
     <Compile Include="Physics\CollisionGroup.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="GameObjects\Components\Items\SharedHandsComponent.cs" />
     <Compile Include="GameObjects\Components\Power\SharedPowerDebugTool.cs" />
     <Compile Include="Maths\PhysicalConstants.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\engine\Lidgren.Network\Lidgren.Network.csproj">
-      <Project>{59250baf-0000-0000-0000-000000000000}</Project>
-      <Name>Lidgren.Network</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\engine\SS14.Shared.Maths\SS14.Shared.Maths.csproj">
-      <Project>{93f23a82-00c5-4572-964e-e7c9457726d4}</Project>
-      <Name>SS14.Shared.Maths</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\engine\SS14.Shared\SS14.Shared.csproj">
-      <Project>{0529f740-0000-0000-0000-000000000000}</Project>
-      <Name>SS14.Shared</Name>
-    </ProjectReference>
-    <!-- Ensure these get built first to prevent sync issues with resoure copying. -->
-    <ProjectReference Include="..\engine\SS14.Client\SS14.Client.csproj">
-      <Name>SS14.Client</Name>
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-      <Project>{83429BD6-6358-4B18-BE51-401DF8EA2673}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\engine\SS14.Server\SS14.Server.csproj">
-      <Name>SS14.Server</Name>
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-      <Project>{B04AAE71-0000-0000-0000-000000000000}</Project>
-    </ProjectReference>
+    <Compile Include="GameObjects\Components\Mobs\SharedSpeciesComponent.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
     <Compile Include="Input\ContentKeyFunctions.cs" />
+    <Compile Include="SharedGameTicker.cs" />
+    <Compile Include="SharedNotifyManager.cs" />
     <Compile Include="Utility\ContentHelpers.cs" />
     <Compile Include="GameObjects\Components\Power\SharedSmesComponent.cs" />
     <Compile Include="GameObjects\Components\Power\SharedApcComponent.cs" />
     <Compile Include="GameObjects\Components\Construction\SharedConstructorComponent.cs" />
     <Compile Include="Construction\ConstructionPrototype.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RobustToolbox\Lidgren.Network\Lidgren.Network.csproj">
+      <Project>{D63D377C-242B-4FC5-8337-35CB87E6C537}</Project>
+      <Name>Lidgren.Network</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\RobustToolbox\SS14.Shared.Maths\SS14.Shared.Maths.csproj">
+      <Project>{7DC961F2-A45B-4193-BE7F-77622A231943}</Project>
+      <Name>SS14.Shared.Maths</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\RobustToolbox\SS14.Shared\SS14.Shared.csproj">
+      <Project>{5F161008-6C48-4596-A2DE-5E7B0CEB2AA1}</Project>
+      <Name>SS14.Shared</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

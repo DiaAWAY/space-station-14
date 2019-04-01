@@ -17,13 +17,16 @@ https://docs.microsoft.com/en-us/visualstudio/msbuild/msbuild
     <Python>python3</Python>
     <Python Condition="'$(OS)'=='Windows_NT' Or '$(OS)'=='Windows'">py -3</Python>
     <ProjectGuid>{C899FCA4-7037-4E49-ABC2-44DE72487110}</ProjectGuid>
-    <TargetFrameworkMoniker>.NETFramework, Version=v4.5.1</TargetFrameworkMoniker>
+    <TargetFrameworkMoniker>.NETFramework, Version=v4.7.1</TargetFrameworkMoniker>
   </PropertyGroup>
   <PropertyGroup>
     <OutputType>Library</OutputType>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <OutputPath>bin\Debug\</OutputPath>
   </PropertyGroup>
   <Target Name="Build">
     <Exec Command="$(Python) git_helper.py" CustomErrorRegularExpression="^Error" />

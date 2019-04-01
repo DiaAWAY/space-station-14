@@ -111,7 +111,7 @@ namespace Content.Server.GameObjects
                 return false;
             }
 
-            clothing.EquippedToSlot(inventorySlot);
+            clothing.EquippedToSlot();
 
             Dirty();
             return true;
@@ -151,7 +151,7 @@ namespace Content.Server.GameObjects
 
             // TODO: The item should be dropped to the container our owner is in, if any.
             var itemTransform = item.Owner.GetComponent<ITransformComponent>();
-            itemTransform.LocalPosition = Owner.GetComponent<ITransformComponent>().LocalPosition;
+            itemTransform.GridPosition = Owner.GetComponent<ITransformComponent>().GridPosition;
             Dirty();
             return true;
         }
@@ -234,7 +234,7 @@ namespace Content.Server.GameObjects
                 var activehand = hands.GetActiveHand;
                 if (activehand != null && activehand.Owner.TryGetComponent(out ClothingComponent clothing))
                 {
-                    hands.Drop(hands.ActiveIndex, null);
+                    hands.Drop(hands.ActiveIndex);
                     if (!Equip(msg.Inventoryslot, clothing))
                     {
                         hands.PutInHand(clothing);

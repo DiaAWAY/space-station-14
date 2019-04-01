@@ -6,11 +6,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SS14.Shared.ViewVariables;
 
 namespace Content.Server.GameObjects
 {
     public class ContainerSlot : BaseContainer
     {
+        [ViewVariables]
         public IEntity ContainedEntity { get; private set; } = null;
 
         /// <inheritdoc />
@@ -46,6 +48,13 @@ namespace Content.Server.GameObjects
         protected override void InternalRemove(IEntity toremove)
         {
             ContainedEntity = null;
+        }
+
+        public override void Shutdown()
+        {
+            base.Shutdown();
+
+            ContainedEntity?.Delete();
         }
     }
 }

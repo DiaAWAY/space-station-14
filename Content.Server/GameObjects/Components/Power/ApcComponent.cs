@@ -1,10 +1,14 @@
-﻿using Content.Server.GameObjects.EntitySystems;
+﻿using Content.Server.GameObjects.Components.Sound;
+using Content.Server.GameObjects.EntitySystems;
 using Content.Shared.GameObjects.Components.Power;
 using SS14.Server.GameObjects;
 using SS14.Server.GameObjects.Components.UserInterface;
+using SS14.Server.GameObjects.EntitySystems;
 using SS14.Server.Interfaces.GameObjects;
+using SS14.Shared.Audio;
 using SS14.Shared.GameObjects.Components.UserInterface;
 using SS14.Shared.Interfaces.GameObjects;
+using SS14.Shared.IoC;
 
 namespace Content.Server.GameObjects.Components.Power
 {
@@ -36,6 +40,7 @@ namespace Content.Server.GameObjects.Components.Power
             {
                 _provider.MainBreaker = !_provider.MainBreaker;
                 _uiDirty = true;
+                _clickSound();
             }
         }
 
@@ -64,7 +69,8 @@ namespace Content.Server.GameObjects.Components.Power
 
             if (_uiDirty)
             {
-                _userInterface.SetState(new ApcBoundInterfaceState(_provider.MainBreaker, extPowerState, newCharge / Storage.Capacity));
+                _userInterface.SetState(new ApcBoundInterfaceState(_provider.MainBreaker, extPowerState,
+                    newCharge / Storage.Capacity));
                 _uiDirty = false;
             }
         }
@@ -109,6 +115,11 @@ namespace Content.Server.GameObjects.Components.Power
 
             _userInterface.Open(actor.playerSession);
             return true;
+        }
+
+        private void _clickSound()
+        {
+            Owner.GetComponent<SoundComponent>().Play("/Audio/machines/machine_switch.ogg", AudioParams.Default.WithVolume(-2f));
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Content.Server.GameObjects.Components.Materials;
+using Content.Server.GameObjects.Components.Sound;
 using Content.Server.GameObjects.Components.Stack;
 using Content.Server.GameObjects.EntitySystems;
 using Content.Shared.Construction;
@@ -33,13 +34,13 @@ namespace Content.Server.GameObjects.Components.Construction
             }
         }
 
-        void TryStartStructureConstruction(GridLocalCoordinates loc, string prototypeName, Angle angle, int ack)
+        void TryStartStructureConstruction(GridCoordinates loc, string prototypeName, Angle angle, int ack)
         {
             var protoMan = IoCManager.Resolve<IPrototypeManager>();
             var prototype = protoMan.Index<ConstructionPrototype>(prototypeName);
 
             var transform = Owner.GetComponent<ITransformComponent>();
-            if (!loc.InRange(transform.LocalPosition, InteractionSystem.INTERACTION_RANGE))
+            if (!loc.InRange(transform.GridPosition, InteractionSystem.INTERACTION_RANGE))
             {
                 return;
             }
@@ -75,8 +76,7 @@ namespace Content.Server.GameObjects.Components.Construction
 
             // OK WE'RE GOOD CONSTRUCTION STARTED.
             var entMgr = IoCManager.Resolve<IServerEntityManager>();
-            var AudioSystem = IoCManager.Resolve<IEntitySystemManager>().GetEntitySystem<AudioSystem>();
-            AudioSystem.Play("/Audio/items/deconstruct.ogg", loc);
+            IoCManager.Resolve<IEntitySystemManager>().GetEntitySystem<AudioSystem>().Play("/Audio/items/deconstruct.ogg", loc);
             if (prototype.Stages.Count == 2)
             {
                 // Exactly 2 stages, so don't make an intermediate frame.

@@ -123,6 +123,11 @@ namespace Content.Client.GameObjects.Components.Storage
             if(!spriteComp.Running)
                 return;
 
+            if (spriteComp.BaseRSI == null)
+            {
+                return;
+            }
+
             var baseName = spriteComp.LayerGetState(0).Name;
 
             var stateId = open ? $"{baseName}_open" : $"{baseName}_door";
@@ -220,7 +225,7 @@ namespace Content.Client.GameObjects.Components.Storage
         /// <summary>
         /// Button created for each entity that represents that item in the storage UI, with a texture, and name and size label
         /// </summary>
-        private class EntityButton : Control
+        private class EntityButton : PanelContainer
         {
             public EntityUid EntityuID { get; set; }
             public Button ActualButton { get; private set; }

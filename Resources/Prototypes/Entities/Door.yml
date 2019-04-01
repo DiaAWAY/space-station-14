@@ -1,23 +1,62 @@
 - type: entity
-  id: DoorContent
-  name: Actual door
-  description: It opens, it closes!
+  id: airlock
+  name: Airlock
+  description: It opens, it closes, and maybe crushes you.
   components:
   - type: Clickable
   - type: Sprite
+
     drawdepth: Mobs # They're on the same layer as mobs, perspective.
-    texture: Objects/door_ew.png
+    sprite: Buildings/airlock_basic.rsi
+    layers:
+    - state: closed
+      map: ["enum.DoorVisualLayers.Base"]
 
   - type: Icon
-    texture: Objects/door_ew.png
+    sprite: Buildings/airlock_basic.rsi
+    state: closed
 
   - type: BoundingBox
-    aabb: "-2,-0.75,-1,0.75"
-    sizeX: 1.9
-    offsetY: 1.5
+    # This AABB isn't the full tile because..
+    # If it is, airlocks collide with walls and other airlocks causing them to never close.
+    # yeah...
+    # TODO: Fix that.
+    aabb: -0.45, -0.45, 0.45, 0.45
   - type: Collidable
   - type: Door
+  - type: Appearance
+    visuals:
+    - type: AirlockVisualizer2D
+      open_sound: /Audio/machines/airlock_open.ogg
+      close_sound: /Audio/machines/airlock_close.ogg
 
   placement:
-    snap:
-    - Wall
+    mode: SnapgridBorder
+
+- type: entity
+  parent: airlock
+  id: airlock_external
+  name: External Airlock
+  components:
+  - type: Sprite
+    sprite: Buildings/airlock_external.rsi
+
+  - type: Icon
+    sprite: Buildings/airlock_external.rsi
+
+  - type: Appearance
+    visuals:
+    - type: AirlockVisualizer2D
+      open_sound: /Audio/machines/airlock_ext_open.ogg
+      close_sound: /Audio/machines/airlock_ext_close.ogg
+
+- type: entity
+  parent: airlock
+  id: airlock_engineering
+  name: Engineering Airlock
+  components:
+  - type: Sprite
+    sprite: Buildings/airlock_engineering.rsi
+
+  - type: Icon
+    sprite: Buildings/airlock_engineering.rsi

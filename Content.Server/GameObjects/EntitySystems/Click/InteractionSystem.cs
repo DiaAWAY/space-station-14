@@ -57,7 +57,7 @@ namespace Content.Server.GameObjects.EntitySystems
         /// <param name="attackwith"></param>
         /// <param name="clicklocation"></param>
         /// <returns></returns>
-        bool RangedAttackby(IEntity user, IEntity attackwith, GridLocalCoordinates clicklocation);
+        bool RangedAttackby(IEntity user, IEntity attackwith, GridCoordinates clicklocation);
     }
 
     /// <summary>
@@ -72,7 +72,7 @@ namespace Content.Server.GameObjects.EntitySystems
         /// <param name="user"></param>
         /// <param name="clicklocation"></param>
         /// <param name="attacked">The entity that was clicked on out of range. May be null if no entity was clicked on.true</param>
-        void Afterattack(IEntity user, GridLocalCoordinates clicklocation, IEntity attacked);
+        void Afterattack(IEntity user, GridCoordinates clicklocation, IEntity attacked);
     }
 
     /// <summary>
@@ -115,7 +115,7 @@ namespace Content.Server.GameObjects.EntitySystems
             inputSys.BindMap.BindFunction(ContentKeyFunctions.ActivateItemInWorld, new PointerInputCmdHandler((HandleUseItemInWorld)));
         }
 
-        private void HandleUseItemInWorld(ICommonSession session, GridLocalCoordinates coords, EntityUid uid)
+        private void HandleUseItemInWorld(ICommonSession session, GridCoordinates coords, EntityUid uid)
         {
             if(!EntityManager.TryGetEntity(uid, out var used))
                 return;
@@ -128,25 +128,31 @@ namespace Content.Server.GameObjects.EntitySystems
             if(playerEnt == null || !playerEnt.IsValid())
                 return;
 
-            if (!playerEnt.Transform.LocalPosition.InRange(used.Transform.LocalPosition, INTERACTION_RANGE))
+            if (!playerEnt.Transform.GridPosition.InRange(used.Transform.GridPosition, INTERACTION_RANGE))
                 return;
 
             activateComp.Activate(playerEnt);
         }
 
-        private void HandleUseItemInHand(ICommonSession session, GridLocalCoordinates coords, EntityUid uid)
+        private void HandleUseItemInHand(ICommonSession session, GridCoordinates coords, EntityUid uid)
         {
             // client sanitization
             if(!coords.IsValidLocation())
             {
-                Logger.InfoS("interaction", $"Invalid Coordinates: client={session}, coords={coords}");
+                Logger.InfoS("system.interaction", $"Invalid Coordinates: client={session}, coords={coords}");
+                return;
+            }
+
+            if (uid.IsClientSide())
+            {
+                Logger.WarningS("system.interaction", $"Client sent interaction with client-side entity. Session={session}, Uid={uid}");
                 return;
             }
 
             UserInteraction(((IPlayerSession)session).AttachedEntity, coords, uid);
         }
 
-        private void UserInteraction(IEntity player, GridLocalCoordinates coordinates, EntityUid clickedUid)
+        private void UserInteraction(IEntity player, GridCoordinates coordinates, EntityUid clickedUid)
         {
             //Get entity clicked upon from UID if valid UID, if not assume no entity clicked upon and null
             if (!EntityManager.TryGetEntity(clickedUid, out var attacked))
@@ -169,13 +175,12 @@ namespace Content.Server.GameObjects.EntitySystems
             {
                 return;
             }
+
             var item = hands.GetActiveHand?.Owner;
 
-
-            if (!MobCanInteract(player))
+            if (!ActionBlockerSystem.CanInteract(player))
                 return;
-            //TODO: Mob status code that allows or rejects interactions based on current mob status
-            //Check if client should be able to see that object to click on it in the first place, prevent using locaters by firing a laser or something
+            //TODO: Check if client should be able to see that object to click on it in the first place, prevent using locaters by firing a laser or something
 
 
             //Clicked on empty space behavior, try using ranged attack
@@ -234,21 +239,12 @@ namespace Content.Server.GameObjects.EntitySystems
         }
 
         /// <summary>
-        /// TODO function for blocking activity based on mob status
-        /// </summary>
-        /// <returns></returns>
-        private static bool MobCanInteract(IEntity user)
-        {
-            return true; //Hook into future planned mob status system
-        }
-
-        /// <summary>
         /// We didn't click on any entity, try doing an afterattack on the click location
         /// </summary>
         /// <param name="user"></param>
         /// <param name="weapon"></param>
         /// <param name="clicklocation"></param>
-        public static void InteractAfterattack(IEntity user, IEntity weapon, GridLocalCoordinates clicklocation)
+        public static void InteractAfterattack(IEntity user, IEntity weapon, GridCoordinates clicklocation)
         {
             List<IAfterAttack> afterattacks = weapon.GetAllComponents<IAfterAttack>().ToList();
 
@@ -265,7 +261,7 @@ namespace Content.Server.GameObjects.EntitySystems
         /// <param name="user"></param>
         /// <param name="weapon"></param>
         /// <param name="attacked"></param>
-        public static void Interaction(IEntity user, IEntity weapon, IEntity attacked, GridLocalCoordinates clicklocation)
+        public static void Interaction(IEntity user, IEntity weapon, IEntity attacked, GridCoordinates clicklocation)
         {
             List<IAttackby> interactables = attacked.GetAllComponents<IAttackby>().ToList();
 
@@ -318,7 +314,7 @@ namespace Content.Server.GameObjects.EntitySystems
         /// <param name="used"></param>
         public static void TryUseInteraction(IEntity user, IEntity used)
         {
-            if (user != null && used != null && MobCanInteract(user))
+            if (user != null && used != null && ActionBlockerSystem.CanUse(user))
             {
                 UseInteraction(user, used);
             }
@@ -351,7 +347,7 @@ namespace Content.Server.GameObjects.EntitySystems
         /// <param name="user"></param>
         /// <param name="weapon"></param>
         /// <param name="attacked"></param>
-        public static void RangedInteraction(IEntity user, IEntity weapon, IEntity attacked, GridLocalCoordinates clicklocation)
+        public static void RangedInteraction(IEntity user, IEntity weapon, IEntity attacked, GridCoordinates clicklocation)
         {
             List<IRangedAttackby> rangedusables = attacked.GetAllComponents<IRangedAttackby>().ToList();
 

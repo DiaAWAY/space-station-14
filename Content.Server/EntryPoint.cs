@@ -34,35 +34,31 @@ using Content.Server.GameObjects.EntitySystems;
 using Content.Server.Mobs;
 using Content.Server.Players;
 using Content.Server.GameObjects.Components.Interactable;
+using Content.Server.GameObjects.Components.Markers;
+using Content.Server.GameObjects.Components.Sound;
+using Content.Server.GameObjects.Components.Weapon.Ranged;
+using Content.Server.GameTicking;
+using Content.Server.Interfaces;
+using Content.Server.Interfaces.GameTicking;
 using Content.Shared.GameObjects.Components.Inventory;
+using Content.Shared.GameObjects.Components.Markers;
+using Content.Shared.GameObjects.Components.Mobs;
+using Content.Shared.Interfaces;
+using SS14.Server.Interfaces.ServerStatus;
+using SS14.Shared.Timing;
+using Content.Server.GameObjects.Components.Destructible;
 
 namespace Content.Server
 {
     public class EntryPoint : GameServer
     {
-        const string PlayerPrototypeName = "HumanMob_Content";
-
-        private IBaseServer _server;
-        private IPlayerManager _players;
-        private IEntityManager entityManager;
-        private IChatManager chatManager;
-
-        private bool _countdownStarted;
-
-        private GridLocalCoordinates SpawnPoint;
+        private IGameTicker _gameTicker;
+        private StatusShell _statusShell;
 
         /// <inheritdoc />
         public override void Init()
         {
             base.Init();
-
-            _server = IoCManager.Resolve<IBaseServer>();
-            _players = IoCManager.Resolve<IPlayerManager>();
-            entityManager = IoCManager.Resolve<IEntityManager>();
-            chatManager = IoCManager.Resolve<IChatManager>();
-
-            _server.RunLevelChanged += HandleRunLevelChanged;
-            _players.PlayerStatusChanged += HandlePlayerStatusChanged;
 
             var factory = IoCManager.Resolve<IComponentFactory>();
 
@@ -76,6 +72,7 @@ namespace Content.Server
             factory.RegisterReference<ItemComponent, StoreableComponent>();
             factory.Register<ClothingComponent>();
             factory.RegisterReference<ClothingComponent, ItemComponent>();
+            factory.RegisterReference<ClothingComponent, StoreableComponent>();
 
             factory.Register<DamageableComponent>();
             factory.Register<DestructibleComponent>();
@@ -93,6 +90,7 @@ namespace Content.Server
             factory.RegisterReference<PowerCellComponent, PowerStorageComponent>();
             factory.Register<PowerDeviceComponent>();
             factory.Register<PowerGeneratorComponent>();
+            factory.Register<LightBulbComponent>();
 
             //Tools
             factory.Register<MultitoolComponent>();
@@ -103,10 +101,14 @@ namespace Content.Server
             factory.Register<CrowbarComponent>();
 
             factory.Register<HitscanWeaponComponent>();
-            factory.Register<ProjectileWeaponComponent>();
+            factory.Register<RangedWeaponComponent>();
+            factory.Register<BallisticMagazineWeaponComponent>();
             factory.Register<ProjectileComponent>();
             factory.Register<ThrownItemComponent>();
             factory.Register<MeleeWeaponComponent>();
+
+            factory.Register<HealingComponent>();
+            factory.Register<SoundComponent>();
 
             factory.Register<HandheldLightComponent>();
 
@@ -125,129 +127,45 @@ namespace Content.Server
             factory.RegisterIgnore("ConstructionGhost");
 
             factory.Register<MindComponent>();
+            factory.Register<SpeciesComponent>();
+
+            factory.Register<SpawnPointComponent>();
+            factory.RegisterReference<SpawnPointComponent, SharedSpawnPointComponent>();
+
+            factory.Register<BallisticBulletComponent>();
+            factory.Register<BallisticMagazineComponent>();
+
+            factory.Register<HitscanWeaponCapacitorComponent>();
+
+            factory.Register<CameraRecoilComponent>();
+            factory.RegisterReference<CameraRecoilComponent, SharedCameraRecoilComponent>();
+
+            IoCManager.Register<ISharedNotifyManager, ServerNotifyManager>();
+            IoCManager.Register<IServerNotifyManager, ServerNotifyManager>();
+            IoCManager.Register<IGameTicker, GameTicker>();
+            IoCManager.BuildGraph();
+
+            _gameTicker = IoCManager.Resolve<IGameTicker>();
+
+            IoCManager.Resolve<IServerNotifyManager>().Initialize();
+
+            var playerManager = IoCManager.Resolve<IPlayerManager>();
+
+            _statusShell = new StatusShell();
         }
 
-        /// <inheritdoc />
-        protected override void Dispose(bool disposing)
+        public override void PostInit()
         {
-            if (disposing)
-            {
-                _server.RunLevelChanged -= HandleRunLevelChanged;
-                _players.PlayerStatusChanged -= HandlePlayerStatusChanged;
-            }
+            base.PostInit();
 
-            base.Dispose(disposing);
+            _gameTicker.Initialize();
         }
 
-        private void HandleRunLevelChanged(object sender, RunLevelChangedEventArgs args)
+        public override void Update(AssemblyLoader.UpdateLevel level, float frameTime)
         {
-            switch (args.NewLevel)
-            {
-                case ServerRunLevel.PreGame:
-                    var timing = IoCManager.Resolve<IGameTiming>();
-                    var mapLoader = IoCManager.Resolve<IMapLoader>();
-                    var mapMan = IoCManager.Resolve<IMapManager>();
+            base.Update(level, frameTime);
 
-                    var newMap = mapMan.CreateMap();
-                    var grid = mapLoader.LoadBlueprint(newMap, "Maps/stationstation.yml");
-
-                    SpawnPoint = new GridLocalCoordinates(Vector2.Zero, grid);
-
-                    var startTime = timing.RealTime;
-                    var timeSpan = timing.RealTime - startTime;
-                    Logger.Info($"Loaded map in {timeSpan.TotalMilliseconds:N2}ms.");
-
-                    chatManager.DispatchMessage(ChatChannel.Server, "Gamemode: Round loaded!");
-                    break;
-                case ServerRunLevel.Game:
-                    _players.SendJoinGameToAll();
-                    chatManager.DispatchMessage(ChatChannel.Server, "Gamemode: Round started!");
-                    break;
-                case ServerRunLevel.PostGame:
-                    chatManager.DispatchMessage(ChatChannel.Server, "Gamemode: Round over!");
-                    break;
-            }
-        }
-
-        private void HandlePlayerStatusChanged(object sender, SessionStatusEventArgs args)
-        {
-            var session = args.Session;
-
-            switch (args.NewStatus)
-            {
-                case SessionStatus.Connected:
-                    {
-                        if (session.Data.ContentDataUncast == null)
-                        {
-                            session.Data.ContentDataUncast = new PlayerData(session.SessionId);
-                        }
-                        // timer time must be > tick length
-                        Timer.Spawn(250, args.Session.JoinLobby);
-
-                        chatManager.DispatchMessage(ChatChannel.Server, "Gamemode: Player joined server!", args.Session.SessionId);
-                    }
-                    break;
-
-                case SessionStatus.InLobby:
-                    {
-                        // auto start game when first player joins
-                        if (_server.RunLevel == ServerRunLevel.PreGame && !_countdownStarted)
-                        {
-                            _countdownStarted = true;
-                            Timer.Spawn(2000, () =>
-                            {
-                                _server.RunLevel = ServerRunLevel.Game;
-                                _countdownStarted = false;
-                            });
-                        }
-
-                        chatManager.DispatchMessage(ChatChannel.Server, "Gamemode: Player joined Lobby!", args.Session.SessionId);
-                    }
-                    break;
-
-                case SessionStatus.InGame:
-                    {
-                        //TODO: Check for existing mob and re-attach
-                        var data = session.ContentData();
-                        if (data.Mind == null)
-                        {
-                            // No mind yet (new session), make a new one.
-                            data.Mind = new Mind(session.SessionId);
-                            var mob = SpawnPlayerMob();
-                            data.Mind.TransferTo(mob);
-                        }
-                        else
-                        {
-                            if (data.Mind.CurrentEntity == null)
-                            {
-                                var mob = SpawnPlayerMob();
-                                data.Mind.TransferTo(mob);
-                            }
-                            session.AttachToEntity(data.Mind.CurrentEntity);
-                        }
-                        chatManager.DispatchMessage(ChatChannel.Server, "Gamemode: Player joined Game!", args.Session.SessionId);
-                    }
-                    break;
-
-                case SessionStatus.Disconnected:
-                    {
-                        chatManager.DispatchMessage(ChatChannel.Server, "Gamemode: Player left!", args.Session.SessionId);
-                    }
-                    break;
-            }
-        }
-
-        IEntity SpawnPlayerMob()
-        {
-            var entity = entityManager.ForceSpawnEntityAt(PlayerPrototypeName, SpawnPoint);
-            var shoes = entityManager.SpawnEntity("ShoesItem");
-            var uniform = entityManager.SpawnEntity("UniformAssistant");
-            if (entity.TryGetComponent(out InventoryComponent inventory))
-            {
-                inventory.Equip(EquipmentSlotDefines.Slots.INNERCLOTHING, uniform.GetComponent<ClothingComponent>());
-                inventory.Equip(EquipmentSlotDefines.Slots.SHOES, shoes.GetComponent<ClothingComponent>());
-            }
-            return entity;
+            _gameTicker.Update(new FrameEventArgs(frameTime));
         }
     }
 }
